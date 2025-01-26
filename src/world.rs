@@ -3,20 +3,20 @@ use std::{io::Write, rc::Rc};
 use image::{Rgb, RgbImage};
 use nalgebra::Vector3;
 
-const MAX_STEPS: u32 = 200;
-const BASE: f32 = 0.99;
+const MAX_STEPS: u32 = 1024;
+const BASE: f32 = 0.995;
 const STEP_SIZE: f32 = 0.03;
 
 use crate::{
     camera::{CameraOrtho, Visible},
-    masses::StaticMasses,
+    masses::StaticMass,
     photon::Physics,
 };
 
 pub struct World {
     camera: CameraOrtho,
     objects: Vec<Rc<dyn Visible>>,
-    masses: Rc<StaticMasses>,
+    masses: Rc<Vec<StaticMass>>,
 }
 
 pub struct Sphere {
@@ -70,7 +70,7 @@ impl World {
         height: f32,
         res_width: u32,
         res_height: u32,
-        masses: Rc<StaticMasses>,
+        masses: Rc<Vec<StaticMass>>,
     ) -> World {
         World {
             camera: CameraOrtho::new(
