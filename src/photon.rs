@@ -10,7 +10,7 @@ pub struct Photon {
 }
 
 impl Photon {
-    pub fn new(pos: Vector3<f32>, dir: Vector3<f32>) -> Photon {
+    pub fn new(pos: Vector3<f32>, dir: Vector3<f32> ) -> Photon {
         Photon {
             pos,
             dir: dir.normalize(),

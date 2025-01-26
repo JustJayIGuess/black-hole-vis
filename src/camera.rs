@@ -3,13 +3,12 @@ use nalgebra::Vector3;
 use crate::photon::Photon;
 
 pub trait Visible {
-    fn overlap(&self, point: &Vector3<f32>) -> bool;
+    fn overlap(&self, point: &Vector3<f32>) -> Option<[f32; 3]>;
 }
 
 pub struct CameraOrtho {
     pub pos: Vector3<f32>,
     pub subject: Vector3<f32>,
-    pub near_clip: f32,
     pub screen: Screen,
 }
 
@@ -63,7 +62,6 @@ impl CameraOrtho {
     pub fn new(
         pos: Vector3<f32>,
         subject: Vector3<f32>,
-        near_clip: f32,
         width: f32,
         height: f32,
         res_width: u32,
@@ -72,7 +70,6 @@ impl CameraOrtho {
         CameraOrtho {
             pos,
             subject,
-            near_clip,
             screen: Screen {
                 width,
                 height,
@@ -80,10 +77,6 @@ impl CameraOrtho {
                 res_height,
             },
         }
-    }
-
-    pub fn index_to_clip_pos(&self, i: u32) -> Vector3<f32> {
-        self.pixel_to_clip_pos(i % self.screen.res_width, i / self.screen.res_width)
     }
 
     pub fn pixel_to_clip_pos(&self, x_px: u32, y_px: u32) -> Vector3<f32> {
@@ -94,7 +87,7 @@ impl CameraOrtho {
         y_basis.normalize_mut();
 
         let x_px_trans = x_px as i32 - (self.screen.res_width / 2) as i32;
-        let y_px_trans = (self.screen.res_height / 2) as i32 - y_px as i32;
+        let y_px_trans = -((self.screen.res_height / 2) as i32 - y_px as i32);
 
         let x = self.screen.width / (self.screen.res_width as f32) * (x_px_trans as f32);
         let y = self.screen.height / (self.screen.res_height as f32) * (y_px_trans as f32);
@@ -103,9 +96,6 @@ impl CameraOrtho {
     }
 
     pub fn pixel_to_photon(&self, x_px: u32, y_px: u32) -> Photon {
-        Photon::new(
-            self.pixel_to_clip_pos(x_px, y_px),
-            self.subject - self.pos,
-        )
+        Photon::new(self.pixel_to_clip_pos(x_px, y_px), self.subject - self.pos)
     }
 }
