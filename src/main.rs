@@ -32,7 +32,7 @@ fn main() {
     world.add_object(Rc::new(TestBlobs {
         pos: Vector3::new(0.0, 0.0, 0.0),
         scale: 4.0,
-        size: 1.8,
+        size: 1.7,
         col: [0.9, 0.7, 0.5]
     }));
 

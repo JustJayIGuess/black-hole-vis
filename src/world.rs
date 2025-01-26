@@ -3,9 +3,8 @@ use std::{io::Write, rc::Rc};
 use image::{Rgb, RgbImage};
 use nalgebra::Vector3;
 
-const MAX_STEPS: u32 = 1024;
-const BASE: f32 = 0.995;
-const STEP_SIZE: f32 = 0.03;
+const MAX_STEPS: u32 = 256;
+const STEP_SIZE: f32 = 0.05;
 
 use crate::{
     camera::{CameraOrtho, Visible},
@@ -88,6 +87,8 @@ impl World {
     pub fn render(&self, filename: &str) {
         let mut image = RgbImage::new(self.camera.screen.res_width, self.camera.screen.res_height);
         let mut prog: u64 = 0;
+        let base = 0.5f32.powf(2.0 / (MAX_STEPS as f32));
+
         for (x_px, y_px) in self.camera.screen {
             if x_px == 0 {
                 print!("\r{:.1}%   ", 100.0 * (prog as f64) / (self.camera.screen.res_width * self.camera.screen.res_height) as f64);
@@ -110,8 +111,9 @@ impl World {
                 }
             }
 
+
             let col = if let Some((steps, diffuse)) = intersect {
-                let grey = BASE.powf(steps as f32).min(1.0);
+                let grey = base.powf(steps as f32).min(1.0);
                 Rgb([(grey * diffuse[0] * 255.0) as u8, (grey * diffuse[1] * 255.0) as u8, (grey * diffuse[2] * 255.0) as u8])
             } else {
                 Rgb([0, 0, 0])
