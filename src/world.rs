@@ -29,8 +29,7 @@ impl Visible for Sphere {
     fn overlap(&self, point: &Vector3<f32>) -> Option<[f32; 3]> {
         if point.metric_distance(&self.pos) <= self.rad {
             Some(self.col)
-        }
-        else {
+        } else {
             None
         }
     }
@@ -54,8 +53,7 @@ impl Visible for TestBlobs {
             <= self.size
         {
             Some(self.col)
-        }
-        else {
+        } else {
             None
         }
     }
@@ -72,9 +70,7 @@ impl World {
         masses: Rc<Vec<StaticMass>>,
     ) -> World {
         World {
-            camera: CameraOrtho::new(
-                cam_pos, subject, width, height, res_width, res_height,
-            ),
+            camera: CameraOrtho::new(cam_pos, subject, width, height, res_width, res_height),
             objects: vec![],
             masses: masses,
         }
@@ -91,7 +87,11 @@ impl World {
 
         for (x_px, y_px) in self.camera.screen {
             if x_px == 0 {
-                print!("\r{:.1}%   ", 100.0 * (prog as f64) / (self.camera.screen.res_width * self.camera.screen.res_height) as f64);
+                print!(
+                    "\r{:.1}%   ",
+                    100.0 * (prog as f64)
+                        / (self.camera.screen.res_width * self.camera.screen.res_height) as f64
+                );
                 std::io::stdout().flush().unwrap();
             }
             prog += 1;
@@ -111,10 +111,13 @@ impl World {
                 }
             }
 
-
             let col = if let Some((steps, diffuse)) = intersect {
                 let grey = base.powf(steps as f32).min(1.0);
-                Rgb([(grey * diffuse[0] * 255.0) as u8, (grey * diffuse[1] * 255.0) as u8, (grey * diffuse[2] * 255.0) as u8])
+                Rgb([
+                    (grey * diffuse[0] * 255.0) as u8,
+                    (grey * diffuse[1] * 255.0) as u8,
+                    (grey * diffuse[2] * 255.0) as u8,
+                ])
             } else {
                 Rgb([0, 0, 0])
             };

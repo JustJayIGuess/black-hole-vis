@@ -35,7 +35,7 @@ impl Physics for Photon {
         for mass in environment.iter() {
             let acc: f32 = G_CONST * mass.mass / (mass.pos.metric_distance(&self.pos)).powi(2);
             let dir: Vector3<f32> = (mass.pos - self.pos).normalize();
-            self.dir = self.dir + acc * dir;// a = GM/r^2
+            self.dir = self.dir + acc * dir; // a = GM/r^2
         }
 
         self.dir.normalize_mut();
