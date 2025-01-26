@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use nalgebra::Vector3;
 
 use crate::StaticMasses;
@@ -5,22 +7,20 @@ use crate::StaticMasses;
 pub struct Photon {
     pos: Vector3<f32>,
     dir: Vector3<f32>,
-    wavelength: f32,
 }
 
 impl Photon {
-    pub fn new(pos: Vector3<f32>, dir: Vector3<f32>, wavelength: f32) -> Photon {
+    pub fn new(pos: Vector3<f32>, dir: Vector3<f32>) -> Photon {
         Photon {
             pos,
-            dir,
-            wavelength,
+            dir: dir.normalize(),
         }
     }
 }
 
 pub trait Physics {
     fn pos(&self) -> &Vector3<f32>;
-    fn step(&mut self, environment: &StaticMasses) -> Option<()>;
+    fn step(&mut self, environment: Rc<StaticMasses>, step_size: f32);
 }
 
 impl Physics for Photon {
@@ -28,8 +28,8 @@ impl Physics for Photon {
         &self.pos
     }
 
-    /// Will return `Some(...)` if photon collided
-    fn step(&mut self, environment: &StaticMasses) -> Option<()> {
-        Some(())
+    fn step(&mut self, environment: Rc<StaticMasses>, step_size: f32) {
+        // self.dir.normalize_mut();
+        self.pos = self.pos + self.dir * step_size;
     }
 }
