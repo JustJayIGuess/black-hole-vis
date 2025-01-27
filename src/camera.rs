@@ -138,7 +138,7 @@ impl CameraOrtho {
         for (x_px, y_px) in self.screen {
             if x_px == 0 && y_px % 10 == 0 {
                 print!(
-                    "\r{}: {:.1}%   ",
+                    "\r\t{}: {:.1}%   ",
                     filename,
                     100.0 * (prog as f64) / (self.screen.res_width * self.screen.res_height) as f64
                 );
@@ -162,7 +162,7 @@ impl CameraOrtho {
             image.put_pixel(x_px, y_px, col);
         }
 
-        println!("\r{}: 100.0%   ", filename);
+        println!("\r\t{}: 100.0%   ", filename);
         println!("Done Rendering {}. Saving...", filename);
         image.save(filename).unwrap();
         println!("Saved.")

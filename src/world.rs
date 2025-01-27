@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf, sync::Arc};
 
-use image::{GenericImage, ImageBuffer, ImageReader, Rgb};
+use image::{GenericImage, ImageBuffer, ImageReader};
 use nalgebra::Vector3;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -159,6 +159,14 @@ impl World {
         None
     }
 
+    pub fn split_and_par_render(&mut self, num_threads: usize, filename: &str) {
+        let res_width = self.cameras[0].screen.res_width;
+        let res_height = self.cameras[0].screen.res_height;
+        self.split_camera(0, num_threads);
+        self.par_render_split_pngs();
+        self.stitch_pngs(res_width, res_height, filename);
+    }
+
     pub fn par_render_split_pngs(&self) {
         let _ = fs::create_dir("stitch");
         self.cameras.par_iter().for_each(|camera| {
@@ -166,12 +174,6 @@ impl World {
                 camera.render_png(&format!("stitch/stitch_{}.png", i), self);
             }
         });
-    }
-
-    pub fn render_pngs(&self, filename: &str) {
-        for (i, camera) in self.cameras.iter().enumerate() {
-            camera.render_png(&format!("{}_{}.png", filename, i), self);
-        }
     }
 
     pub fn stitch_pngs(&self, width: u32, height: u32, filename: &str) {
