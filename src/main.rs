@@ -8,7 +8,7 @@ mod masses;
 mod photon;
 mod world;
 
-const NUM_THREADS: usize = 10;
+const NUM_THREADS: usize = 20;
 
 fn main() {
     let mut world = World::new();
@@ -34,8 +34,13 @@ fn main() {
         col: [1.0, 0.5, 0.3],
     }));
 
+    // for i in 0..1 {
+
     let now = SystemTime::now();
     world.par_render_split_pngs();
-    world.stitch_pngs(NUM_THREADS, "out");
+    world.stitch_pngs(1024, 1024, &format!("frame.png"));
     print!("Saved after {:?}.", now.elapsed().unwrap());
+
+    // world.clear_cameras();
+    // }
 }

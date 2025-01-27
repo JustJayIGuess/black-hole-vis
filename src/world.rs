@@ -1,5 +1,6 @@
 use std::{fs, path::PathBuf, sync::Arc};
 
+use image::{GenericImage, ImageBuffer, ImageReader, Rgb};
 use nalgebra::Vector3;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -111,6 +112,10 @@ impl World {
         ));
     }
 
+    pub fn clear_cameras(&mut self) {
+        self.cameras.clear();
+    }
+
     pub fn split_camera(&mut self, index: usize, n: usize) {
         if index >= self.cameras.len() {
             panic!("Tried to split non-existant camera!");
@@ -169,26 +174,33 @@ impl World {
         }
     }
 
-    pub fn stitch_pngs(&self, n: usize, filename: &str) {
-        use stitchy_core::{ImageFiles, OrderBy, TakeFrom};
-
-        let image_files = ImageFiles::builder()
-            .add_directory(fs::canonicalize(PathBuf::from("stitch")).unwrap())
+    pub fn stitch_pngs(&self, width: u32, height: u32, filename: &str) {
+        let mut paths: Vec<PathBuf> = fs::read_dir("stitch")
             .unwrap()
-            .build()
-            .unwrap()
-            .sort_and_truncate_by(n, OrderBy::Alphabetic, TakeFrom::Start, false)
-            .unwrap();
+            .into_iter()
+            .map(|p| p.unwrap().path())
+            .collect();
 
-        // Stitch images in a horizontal line, restricting the width to 1000 pixels
-        use stitchy_core::{AlignmentMode, Stitch};
-        let stitch = Stitch::builder()
-            .image_files(image_files)
-            .unwrap()
-            .width_limit(10000)
-            .alignment(AlignmentMode::Vertical)
-            .stitch();
+        paths.sort_by_key(|a| {
+            a.file_stem()
+                .unwrap()
+                .to_string_lossy()
+                .chars()
+                .filter(|c| c.is_digit(10))
+                .collect::<String>()
+                .parse::<u32>()
+                .unwrap_or(u32::MAX)
+        });
 
-        stitch.unwrap().save(format!("{}.png", filename)).unwrap();
+        let mut image = ImageBuffer::new(width, height);
+        let mut y_px = 0;
+
+        for path in paths {
+            let stitch = ImageReader::open(path).unwrap().decode().unwrap();
+            let _ = image.copy_from(&stitch.to_rgba8(), 0, y_px);
+            y_px += stitch.height();
+        }
+
+        let _ = image.save(filename);
     }
 }
