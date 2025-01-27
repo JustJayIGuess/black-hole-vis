@@ -2,7 +2,10 @@ use std::{fs, path::PathBuf, sync::Arc};
 
 use image::{GenericImage, ImageBuffer, ImageReader};
 use nalgebra::Vector3;
+use num::pow::Pow;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
+const X_AXIS: Vector3<f32> = Vector3::new(1.0, 0.0, 0.0);
 
 use crate::{
     camera::{CameraOrtho, Visible},
@@ -71,12 +74,18 @@ impl Visible for Disk {
         let r = local.xy().magnitude_squared();
         if r >= self.inner_rad * self.inner_rad && r <= self.outer_rad * self.outer_rad {
             if local.z.abs() < self.height / 2.0 {
+                let theta = (local.y).atan2(local.x);
+
                 let discs_1_phase = 2.0 * r.powf(0.5) / self.inner_rad;
-                let discs_2_phase = 3.1416 * r.powf(0.7) / self.inner_rad;
-                let discs_3_phase = 1.7 * r.powf(0.5) / self.inner_rad;
+                let discs_2_phase = 3.1416 * r.powf(0.7) / self.inner_rad + theta;
+                let discs_3_phase = 1.7 * r.powf(0.5) / self.inner_rad + 2.0 * theta;
+                let discs_4_phase = r / self.inner_rad + theta;
+                let discs_5_phase = 0.2 * r / self.inner_rad + 2.0 * theta;
                 let grey = (2.5
                     + (discs_1_phase.sin().abs() + 0.1 * discs_2_phase.sin()
-                        - 0.2 * discs_3_phase.sin()))
+                        - 0.2 * discs_3_phase.sin()
+                        + 0.2 * discs_4_phase.sin()
+                        + 0.5 * discs_5_phase.sin()))
                     * (1.0 - (r / self.outer_rad.powi(2)));
                 let new_col = [grey * self.col[0], grey * self.col[1], grey * self.col[2]];
                 Some(new_col)
@@ -138,8 +147,16 @@ impl World {
         self.objects.push(object);
     }
 
+    pub fn clear_objects(&mut self) {
+        self.objects.clear();
+    }
+
     pub fn add_mass(&mut self, pos: Vector3<f32>, mass: f32) {
         self.masses.push(StaticMass { pos, mass });
+    }
+
+    pub fn clear_masses(&mut self) {
+        self.masses.clear();
     }
 
     pub fn simulate_photon(
