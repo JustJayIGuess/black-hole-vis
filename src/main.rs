@@ -1,41 +1,41 @@
-use std::rc::Rc;
+use std::{sync::Arc, time::SystemTime};
 
-use masses::StaticMass;
 use nalgebra::Vector3;
-use world::{Sphere, TestBlobs, World};
+use world::{Disk, World};
 
 mod camera;
 mod masses;
 mod photon;
 mod world;
 
-fn main() {
-    let masses = vec![StaticMass {
-        pos: Vector3::new(2.0, 7.0, 0.0),
-        mass: 1.0,
-    }];
+const NUM_THREADS: usize = 10;
 
-    let mut world = World::new(
-        Vector3::new(6.0, 5.0, 4.0),
+fn main() {
+    let mut world = World::new();
+
+    world.add_camera(
+        Vector3::new(6.0, 5.0, 1.5),
         Vector3::new(0.0, 0.0, 0.0),
-        20.0,
-        20.0,
+        15.0,
+        15.0,
         1024,
         1024,
-        Rc::new(masses),
     );
 
-    world.add_object(Rc::new(Sphere {
-        pos: Vector3::new(3.0, 0.0, 2.0),
-        rad: 3.0,
-        col: [0.8, 0.6, 0.9],
-    }));
-    world.add_object(Rc::new(TestBlobs {
+    world.split_camera(0, NUM_THREADS);
+
+    world.add_mass(Vector3::new(0.0, 0.0, 0.0), 1.0);
+
+    world.add_object(Arc::new(Disk {
         pos: Vector3::new(0.0, 0.0, 0.0),
-        scale: 4.0,
-        size: 1.7,
-        col: [0.9, 0.7, 0.5],
+        inner_rad: 1.0,
+        outer_rad: 8.0,
+        height: 0.05,
+        col: [1.0, 0.5, 0.3],
     }));
 
-    world.render("out.png");
+    let now = SystemTime::now();
+    world.par_render_split_pngs();
+    world.stitch_pngs(NUM_THREADS, "out");
+    print!("Saved after {:?}.", now.elapsed().unwrap());
 }

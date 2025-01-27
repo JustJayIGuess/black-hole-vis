@@ -1,21 +1,18 @@
-use std::{io::Write, rc::Rc};
+use std::{fs, path::PathBuf, sync::Arc};
 
-use image::{Rgb, RgbImage};
 use nalgebra::Vector3;
-
-const MAX_STEPS: u32 = 256;
-const STEP_SIZE: f32 = 0.05;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
     camera::{CameraOrtho, Visible},
     masses::StaticMass,
-    photon::Physics,
+    photon::{Photon, Physics},
 };
 
 pub struct World {
-    camera: CameraOrtho,
-    objects: Vec<Rc<dyn Visible>>,
-    masses: Rc<Vec<StaticMass>>,
+    cameras: Vec<CameraOrtho>,
+    objects: Vec<Arc<dyn Visible>>,
+    masses: Vec<StaticMass>,
 }
 
 pub struct Sphere {
@@ -59,71 +56,139 @@ impl Visible for TestBlobs {
     }
 }
 
+pub struct Disk {
+    pub pos: Vector3<f32>,
+    pub outer_rad: f32,
+    pub inner_rad: f32,
+    pub height: f32,
+    pub col: [f32; 3],
+}
+
+impl Visible for Disk {
+    fn overlap(&self, point: &Vector3<f32>) -> Option<[f32; 3]> {
+        let local = point - self.pos;
+        let r = local.xy().magnitude_squared();
+        if r >= self.inner_rad * self.inner_rad && r <= self.outer_rad * self.outer_rad {
+            if local.z.abs() < self.height / 2.0 {
+                let discs_1_phase = 2.0 * r.powf(0.5) / self.inner_rad;
+                let discs_2_phase = 3.1416 * r.powf(0.7) / self.inner_rad;
+                let discs_3_phase = 1.7 * r.powf(0.5) / self.inner_rad;
+                let grey = (2.5
+                    + (discs_1_phase.sin().abs() + 0.1 * discs_2_phase.sin()
+                        - 0.2 * discs_3_phase.sin()))
+                    * (1.0 - (r / self.outer_rad.powi(2)));
+                let new_col = [grey * self.col[0], grey * self.col[1], grey * self.col[2]];
+                Some(new_col)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
 impl World {
-    pub fn new(
+    pub fn new() -> World {
+        World {
+            cameras: vec![],
+            objects: vec![],
+            masses: vec![],
+        }
+    }
+
+    pub fn add_camera(
+        &mut self,
         cam_pos: Vector3<f32>,
         subject: Vector3<f32>,
         width: f32,
         height: f32,
         res_width: u32,
         res_height: u32,
-        masses: Rc<Vec<StaticMass>>,
-    ) -> World {
-        World {
-            camera: CameraOrtho::new(cam_pos, subject, width, height, res_width, res_height),
-            objects: vec![],
-            masses: masses,
-        }
+    ) {
+        self.cameras.push(CameraOrtho::new(
+            cam_pos, subject, width, height, res_width, res_height,
+        ));
     }
 
-    pub fn add_object(&mut self, object: Rc<dyn Visible>) {
+    pub fn split_camera(&mut self, index: usize, n: usize) {
+        if index >= self.cameras.len() {
+            panic!("Tried to split non-existant camera!");
+        }
+
+        let camera = self.cameras.remove(index);
+
+        let mut last_row_end = 0;
+        let step = camera.screen.res_height / (n as u32);
+        for i in 0..n - 1 {
+            self.cameras
+                .push(camera.subdivide_camera(last_row_end, last_row_end + step, i));
+            last_row_end += step;
+        }
+        self.cameras
+            .push(camera.subdivide_camera(last_row_end, camera.screen.res_height, n - 1));
+    }
+
+    pub fn add_object(&mut self, object: Arc<dyn Visible>) {
         self.objects.push(object);
     }
 
-    pub fn render(&self, filename: &str) {
-        let mut image = RgbImage::new(self.camera.screen.res_width, self.camera.screen.res_height);
-        let mut prog: u64 = 0;
-        let base = 0.5f32.powf(2.0 / (MAX_STEPS as f32));
+    pub fn add_mass(&mut self, pos: Vector3<f32>, mass: f32) {
+        self.masses.push(StaticMass { pos, mass });
+    }
 
-        for (x_px, y_px) in self.camera.screen {
-            if x_px == 0 {
-                print!(
-                    "\r{:.1}%   ",
-                    100.0 * (prog as f64)
-                        / (self.camera.screen.res_width * self.camera.screen.res_height) as f64
-                );
-                std::io::stdout().flush().unwrap();
-            }
-            prog += 1;
-            let mut photon = self.camera.pixel_to_photon(x_px, y_px);
-
-            let mut intersect: Option<(u32, [f32; 3])> = None;
-            for step in 0..MAX_STEPS {
-                photon.step(self.masses.clone(), STEP_SIZE);
-                for object in self.objects.iter() {
-                    if let Some(diffuse) = object.overlap(photon.pos()) {
-                        intersect = Some((step, diffuse));
-                        break;
-                    }
-                }
-                if intersect.is_some() {
-                    break;
+    pub fn simulate_photon(
+        &self,
+        mut photon: Photon,
+        max_steps: u32,
+        step_size: f32,
+    ) -> Option<(u32, [f32; 3])> {
+        for step in 0..max_steps {
+            photon.step(self.masses.clone(), step_size);
+            for object in self.objects.iter() {
+                if let Some(diffuse) = object.overlap(photon.pos()) {
+                    return Some((step, diffuse));
                 }
             }
-
-            let col = if let Some((steps, diffuse)) = intersect {
-                let grey = base.powf(steps as f32).min(1.0);
-                Rgb([
-                    (grey * diffuse[0] * 255.0) as u8,
-                    (grey * diffuse[1] * 255.0) as u8,
-                    (grey * diffuse[2] * 255.0) as u8,
-                ])
-            } else {
-                Rgb([0, 0, 0])
-            };
-            image.put_pixel(x_px, y_px, col);
         }
+        None
+    }
 
-        image.save(filename).unwrap();
+    pub fn par_render_split_pngs(&self) {
+        let _ = fs::create_dir("stitch");
+        self.cameras.par_iter().for_each(|camera| {
+            if let Some(i) = camera.split_index {
+                camera.render_png(&format!("stitch/stitch_{}.png", i), self);
+            }
+        });
+    }
+
+    pub fn render_pngs(&self, filename: &str) {
+        for (i, camera) in self.cameras.iter().enumerate() {
+            camera.render_png(&format!("{}_{}.png", filename, i), self);
+        }
+    }
+
+    pub fn stitch_pngs(&self, n: usize, filename: &str) {
+        use stitchy_core::{ImageFiles, OrderBy, TakeFrom};
+
+        let image_files = ImageFiles::builder()
+            .add_directory(fs::canonicalize(PathBuf::from("stitch")).unwrap())
+            .unwrap()
+            .build()
+            .unwrap()
+            .sort_and_truncate_by(n, OrderBy::Alphabetic, TakeFrom::Start, false)
+            .unwrap();
+
+        // Stitch images in a horizontal line, restricting the width to 1000 pixels
+        use stitchy_core::{AlignmentMode, Stitch};
+        let stitch = Stitch::builder()
+            .image_files(image_files)
+            .unwrap()
+            .width_limit(10000)
+            .alignment(AlignmentMode::Vertical)
+            .stitch();
+
+        stitch.unwrap().save(format!("{}.png", filename)).unwrap();
     }
 }

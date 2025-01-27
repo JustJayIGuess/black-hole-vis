@@ -1,8 +1,14 @@
+use std::io::Write;
+
+use image::{Rgb, RgbImage};
 use nalgebra::Vector3;
 
-use crate::photon::Photon;
+use crate::{photon::Photon, world::World};
 
-pub trait Visible {
+const MAX_STEPS: u32 = 400;
+const STEP_SIZE: f32 = 0.05;
+
+pub trait Visible: Send + Sync {
     fn overlap(&self, point: &Vector3<f32>) -> Option<[f32; 3]>;
 }
 
@@ -10,6 +16,7 @@ pub struct CameraOrtho {
     pub pos: Vector3<f32>,
     pub subject: Vector3<f32>,
     pub screen: Screen,
+    pub split_index: Option<usize>,
 }
 
 #[derive(Clone, Copy)]
@@ -76,26 +83,88 @@ impl CameraOrtho {
                 res_width,
                 res_height,
             },
+            split_index: None,
         }
     }
 
-    pub fn pixel_to_clip_pos(&self, x_px: u32, y_px: u32) -> Vector3<f32> {
+    pub fn subdivide_camera(&self, row_start: u32, row_end: u32, index: usize) -> CameraOrtho {
+        let pos = self.pixel_to_clip_pos(
+            self.screen.res_width as f32 / 2.0,
+            (row_start as f32 + row_end as f32) / 2.0,
+        );
+        let subject = pos + self.subject - self.pos;
+        CameraOrtho {
+            pos,
+            subject,
+            screen: Screen {
+                width: self.screen.width,
+                height: self.screen.height * (row_start.abs_diff(row_end) as f32)
+                    / (self.screen.res_height as f32),
+                res_width: self.screen.res_width,
+                res_height: row_start.abs_diff(row_end),
+            },
+            split_index: Some(index),
+        }
+    }
+
+    pub fn pixel_to_clip_pos(&self, x_px: f32, y_px: f32) -> Vector3<f32> {
         let dir = self.subject - self.pos;
         let mut x_basis = Vector3::new(-dir.y, dir.x, 0.0);
         x_basis.normalize_mut();
         let mut y_basis = x_basis.cross(&dir);
         y_basis.normalize_mut();
 
-        let x_px_trans = x_px as i32 - (self.screen.res_width / 2) as i32;
-        let y_px_trans = -((self.screen.res_height / 2) as i32 - y_px as i32);
+        let x_px_trans = x_px - (self.screen.res_width / 2) as f32;
+        let y_px_trans = -((self.screen.res_height / 2) as f32 - y_px);
 
-        let x = self.screen.width / (self.screen.res_width as f32) * (x_px_trans as f32);
-        let y = self.screen.height / (self.screen.res_height as f32) * (y_px_trans as f32);
+        let x = self.screen.width / (self.screen.res_width as f32) * x_px_trans;
+        let y = self.screen.height / (self.screen.res_height as f32) * y_px_trans;
 
         self.pos + x * x_basis + y * y_basis
     }
 
     pub fn pixel_to_photon(&self, x_px: u32, y_px: u32) -> Photon {
-        Photon::new(self.pixel_to_clip_pos(x_px, y_px), self.subject - self.pos)
+        Photon::new(
+            self.pixel_to_clip_pos(x_px as f32, y_px as f32),
+            self.subject - self.pos,
+        )
+    }
+
+    pub fn render_png(&self, filename: &str, world: &World) {
+        let mut image = RgbImage::new(self.screen.res_width, self.screen.res_height);
+        let mut prog: u64 = 0;
+        let base = 0.5f32.powf(2.0 / (MAX_STEPS as f32));
+
+        for (x_px, y_px) in self.screen {
+            if x_px == 0 && y_px % 10 == 0 {
+                print!(
+                    "\r{}: {:.1}%   ",
+                    filename,
+                    100.0 * (prog as f64) / (self.screen.res_width * self.screen.res_height) as f64
+                );
+                std::io::stdout().flush().unwrap();
+            }
+            prog += 1;
+            let photon = self.pixel_to_photon(x_px, y_px);
+
+            let col = if let Some((steps, diffuse)) =
+                world.simulate_photon(photon, MAX_STEPS, STEP_SIZE)
+            {
+                let grey = base.powf(steps as f32).min(1.0);
+                Rgb([
+                    (grey * diffuse[0] * 255.0) as u8,
+                    (grey * diffuse[1] * 255.0) as u8,
+                    (grey * diffuse[2] * 255.0) as u8,
+                ])
+            } else {
+                Rgb([0, 0, 0])
+            };
+            image.put_pixel(x_px, y_px, col);
+        }
+
+        println!("\r{}: 100.0%   ", filename);
+        println!("Done Rendering {}. Saving...", filename);
+        image.save(filename).unwrap();
+        println!("Saved.")
     }
 }
