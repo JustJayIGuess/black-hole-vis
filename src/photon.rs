@@ -1,8 +1,6 @@
 use crate::masses::StaticMass;
 use glam::Vec3;
 
-const G_CONST: f32 = 10.0;
-
 pub struct Photon {
     pub pos: Vec3,
     dir: Vec3,
@@ -28,7 +26,7 @@ impl Physics for Photon {
         for mass in environment {
             let r_sqr = mass.pos.distance_squared(self.pos);
             self.dir = self.dir
-                + step_size * step_size * G_CONST * mass.mass * (mass.pos - self.pos)
+                + step_size * step_size * mass.mass * (mass.pos - self.pos)
                     / (r_sqr * r_sqr.sqrt()); // a = GM/r^2
         }
 

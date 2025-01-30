@@ -5,7 +5,7 @@ use image::{Rgb, RgbImage};
 
 use crate::{photon::Photon, world::World};
 
-const MAX_STEPS: u32 = 400;
+const MAX_STEPS: u32 = 350;
 const STEP_SIZE: f32 = 0.05;
 
 pub trait Visible: Send + Sync {
@@ -17,6 +17,7 @@ pub struct CameraOrtho {
     pub subject: Vec3,
     pub screen: Screen,
     pub split_index: Option<usize>,
+    pub exposure: f32,
 }
 
 #[derive(Clone, Copy)]
@@ -73,6 +74,7 @@ impl CameraOrtho {
         height: f32,
         res_width: u32,
         res_height: u32,
+        exposure: f32,
     ) -> CameraOrtho {
         CameraOrtho {
             pos,
@@ -84,6 +86,7 @@ impl CameraOrtho {
                 res_height,
             },
             split_index: None,
+            exposure,
         }
     }
 
@@ -104,6 +107,7 @@ impl CameraOrtho {
                 res_height: row_start.abs_diff(row_end),
             },
             split_index: Some(index),
+            exposure: self.exposure,
         }
     }
 
@@ -131,7 +135,6 @@ impl CameraOrtho {
     pub fn render_png(&self, filename: &str, world: &World) {
         let mut image = RgbImage::new(self.screen.res_width, self.screen.res_height);
         let mut prog: u64 = 0;
-        let base = 0.5f32.powf(2.0 / (MAX_STEPS as f32));
 
         for (x_px, y_px) in self.screen {
             if x_px == 0 && y_px % 10 == 0 {
@@ -145,14 +148,11 @@ impl CameraOrtho {
             prog += 1;
             let photon = self.pixel_to_photon(x_px, y_px);
 
-            let col = if let Some((steps, diffuse)) =
-                world.simulate_photon(photon, MAX_STEPS, STEP_SIZE)
-            {
-                let grey = base.powf(steps as f32).min(1.0);
+            let col = if let Some(diffuse) = world.simulate_photon(photon, MAX_STEPS, STEP_SIZE) {
                 Rgb([
-                    (grey * diffuse[0] * 255.0) as u8,
-                    (grey * diffuse[1] * 255.0) as u8,
-                    (grey * diffuse[2] * 255.0) as u8,
+                    (self.exposure * diffuse[0] * 255.0) as u8,
+                    (self.exposure * diffuse[1] * 255.0) as u8,
+                    (self.exposure * diffuse[2] * 255.0) as u8,
                 ])
             } else {
                 Rgb([0, 0, 0])

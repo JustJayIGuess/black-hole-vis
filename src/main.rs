@@ -9,8 +9,8 @@ mod photon;
 mod world;
 
 const NUM_THREADS: usize = 10;
-const RES_WIDTH: u32 = 3024;
-const RES_HEIGHT: u32 = 1964;
+const RES_WIDTH: u32 = 1920;
+const RES_HEIGHT: u32 = 1080;
 const FRAMES: usize = 1;
 
 fn main() {
@@ -29,19 +29,20 @@ fn main() {
             col: [1.0, 0.5, 0.3],
         }));
 
-        world.add_mass(Vec3::new(0.0, 0.0, 0.0), 1.0);
+        world.add_mass(Vec3::new(0.0, 0.0, 0.0), 10.0);
 
         world.add_camera(
             Vec3::new(
-                9.0 * (2.0 * PI * t).cos(),
-                9.0 * (2.0 * PI * t).sin(),
-                3.0 * (1.0 / (1.0 + (20.0 * (t - 0.5)).exp()) - 0.5),
+                8.0 * (2.0 * PI * t).cos(),
+                8.0 * (2.0 * PI * t).sin(),
+                1.0 * (1.0 / (1.0 + (20.0 * (t - 0.5)).exp()) - 0.5),
             ),
-            Vec3::new(0.0, 0.0, 1.0),
-            15.0 * RES_WIDTH as f32 / RES_HEIGHT as f32,
-            15.0,
+            Vec3::new(0.0, 0.0, 0.0),
+            9.0 * RES_WIDTH as f32 / RES_HEIGHT as f32,
+            9.0,
             RES_WIDTH,
             RES_HEIGHT,
+            0.55,
         );
 
         world.split_and_par_render(NUM_THREADS, &format!("out/frame_{i:0>6}.png"));
