@@ -2,10 +2,7 @@ use std::{fs, path::PathBuf, sync::Arc};
 
 use image::{GenericImage, ImageBuffer, ImageReader};
 use nalgebra::Vector3;
-use num::pow::Pow;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-
-const X_AXIS: Vector3<f32> = Vector3::new(1.0, 0.0, 0.0);
 
 use crate::{
     camera::{CameraOrtho, Visible},
@@ -86,7 +83,8 @@ impl Visible for Disk {
                         - 0.2 * discs_3_phase.sin()
                         + 0.2 * discs_4_phase.sin()
                         + 0.5 * discs_5_phase.sin()))
-                    * (1.0 - (r / self.outer_rad.powi(2)));
+                    * (1.0 - (r / self.outer_rad.powi(2)))
+                    * (5.0 * (r - self.inner_rad) / self.inner_rad).clamp(0.0, 1.0);
                 let new_col = [grey * self.col[0], grey * self.col[1], grey * self.col[2]];
                 Some(new_col)
             } else {
