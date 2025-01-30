@@ -1,8 +1,6 @@
 use std::io::Write;
-
 use glam::Vec3;
 use image::{Rgb, RgbImage};
-
 use crate::{photon::Photon, world::World};
 
 const MAX_STEPS: u32 = 350;

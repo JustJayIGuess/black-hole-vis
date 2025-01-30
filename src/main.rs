@@ -2,12 +2,14 @@ use std::{f32::consts::PI, sync::Arc, time::SystemTime};
 
 use camera::Ortho;
 use glam::Vec3;
-use world::{Disk, World};
+use objects::Disk;
+use world::World;
 
 mod camera;
 mod masses;
 mod photon;
 mod world;
+mod objects;
 
 const NUM_THREADS: usize = 10;
 const RES_WIDTH: u32 = 1920;
