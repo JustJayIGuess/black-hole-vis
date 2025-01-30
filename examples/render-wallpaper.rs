@@ -1,3 +1,4 @@
+use std::fs;
 use std::{sync::Arc, time::SystemTime};
 
 use black_hole_vis::camera::Ortho;
@@ -43,7 +44,8 @@ fn main() {
         0.55,
     ));
 
-    world.split_and_par_render(NUM_THREADS, &format!("wallpaper.png"));
+    let _ = fs::create_dir_all("out/still");
+    world.split_and_par_render(NUM_THREADS, &format!("out/still/wallpaper.png"));
 
     println!("Saved picture after {:?}.", now.elapsed().unwrap());
 }

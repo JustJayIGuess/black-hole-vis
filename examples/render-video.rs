@@ -1,3 +1,4 @@
+use std::fs;
 use std::{f32::consts::PI, sync::Arc, time::SystemTime};
 
 use black_hole_vis::camera::Ortho;
@@ -53,7 +54,9 @@ fn main() {
             0.55,
         ));
 
-        world.split_and_par_render(NUM_THREADS, &format!("out/frame_{i:0>6}.png"));
+
+        let _ = fs::create_dir_all("out/video");
+        world.split_and_par_render(NUM_THREADS, &format!("out/video/frame_{i:0>6}.png"));
         world.clear_objects();
         world.clear_cameras();
         world.clear_masses();

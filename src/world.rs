@@ -97,16 +97,16 @@ impl World {
     }
 
     fn par_render_split_pngs(&self) {
-        let _ = fs::create_dir("stitch");
+        let _ = fs::create_dir_all("out/stitch");
         self.cameras.par_iter().for_each(|camera| {
             if let Some(i) = camera.split_index {
-                camera.render_png(&format!("stitch/stitch_{i}.png"), self);
+                camera.render_png(&format!("out/stitch/stitch_{i}.png"), self);
             }
         });
     }
 
     fn stitch_pngs(width: u32, height: u32, filename: &str) {
-        let mut paths: Vec<PathBuf> = fs::read_dir("stitch")
+        let mut paths: Vec<PathBuf> = fs::read_dir("out/stitch")
             .unwrap()
             .map(|p| p.unwrap().path())
             .collect();
