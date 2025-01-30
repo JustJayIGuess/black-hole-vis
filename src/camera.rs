@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use image::{Rgb, RgbImage};
 use glam::Vec3;
+use image::{Rgb, RgbImage};
 
 use crate::{photon::Photon, world::World};
 
@@ -111,7 +111,7 @@ impl CameraOrtho {
         let dir = self.subject - self.pos;
         let x_basis = Vec3::new(-dir.y, dir.x, 0.0).normalize_or_zero();
         let y_basis = x_basis.cross(dir).normalize_or_zero();
-        
+
         let x_px_trans = x_px - (self.screen.res_width / 2) as f32;
         let y_px_trans = -((self.screen.res_height / 2) as f32 - y_px);
 

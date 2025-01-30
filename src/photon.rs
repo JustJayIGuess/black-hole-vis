@@ -4,7 +4,7 @@ use glam::Vec3;
 const G_CONST: f32 = 10.0;
 
 pub struct Photon {
-    pos: Vec3,
+    pub pos: Vec3,
     dir: Vec3,
 }
 
@@ -18,24 +18,21 @@ impl Photon {
 }
 
 pub trait Physics {
-    fn pos(&self) -> &Vec3;
-    fn step(&mut self, environment: Vec<StaticMass>, step_size: f32);
+    fn step(&mut self, environment: &Vec<StaticMass>, step_size: f32);
 }
 
 impl Physics for Photon {
-    fn pos(&self) -> &Vec3 {
-        &self.pos
-    }
-
-    fn step(&mut self, environment: Vec<StaticMass>, step_size: f32) {
+    #[inline(always)]
+    fn step(&mut self, environment: &Vec<StaticMass>, step_size: f32) {
         // Newtonian
-        for mass in environment.iter() {
-            let acc: f32 = G_CONST * mass.mass / mass.pos.distance_squared(self.pos);
-            let dir: Vec3 = (mass.pos - self.pos).normalize();
-            self.dir = self.dir + acc * dir * step_size * step_size; // a = GM/r^2
+        for mass in environment {
+            let r_sqr = mass.pos.distance_squared(self.pos);
+            self.dir = self.dir
+                + step_size * step_size * G_CONST * mass.mass * (mass.pos - self.pos)
+                    / (r_sqr * r_sqr.sqrt()); // a = GM/r^2
         }
 
-        self.dir = self.dir.normalize_or_zero();
+        self.dir = self.dir.normalize();
         self.pos = self.pos + self.dir * step_size;
     }
 }

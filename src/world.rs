@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf, sync::Arc};
 
-use image::{GenericImage, ImageBuffer, ImageReader};
 use glam::{Vec3, Vec3Swizzles};
+use image::{GenericImage, ImageBuffer, ImageReader};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
@@ -66,11 +66,12 @@ pub struct Disk {
 }
 
 impl Visible for Disk {
+    #[inline(always)]
     fn overlap(&self, point: &Vec3) -> Option<[f32; 3]> {
         let local = point - self.pos;
-        let r = local.xy().length_squared();
-        if r >= self.inner_rad * self.inner_rad && r <= self.outer_rad * self.outer_rad {
-            if local.z.abs() < self.height / 2.0 {
+        if local.z.abs() < self.height / 2.0 {
+            let r = local.xy().length_squared();
+            if r >= self.inner_rad * self.inner_rad && r <= self.outer_rad * self.outer_rad {
                 let theta = (local.y).atan2(local.x);
 
                 let discs_1_phase = 2.0 * r.powf(0.5) / self.inner_rad;
@@ -164,9 +165,9 @@ impl World {
         step_size: f32,
     ) -> Option<(u32, [f32; 3])> {
         for step in 0..max_steps {
-            photon.step(self.masses.clone(), step_size);
+            photon.step(&self.masses, step_size);
             for object in self.objects.iter() {
-                if let Some(diffuse) = object.overlap(photon.pos()) {
+                if let Some(diffuse) = object.overlap(&photon.pos) {
                     return Some((step, diffuse));
                 }
             }
