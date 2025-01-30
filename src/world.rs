@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf, sync::Arc};
 
 use image::{GenericImage, ImageBuffer, ImageReader};
-use nalgebra::Vector3;
+use glam::{Vec3, Vec3Swizzles};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
@@ -17,15 +17,15 @@ pub struct World {
 }
 
 pub struct Sphere {
-    pub pos: Vector3<f32>,
+    pub pos: Vec3,
     pub rad: f32,
     pub col: [f32; 3],
 }
 
 impl Visible for Sphere {
     #[inline]
-    fn overlap(&self, point: &Vector3<f32>) -> Option<[f32; 3]> {
-        if point.metric_distance(&self.pos) <= self.rad {
+    fn overlap(&self, point: &Vec3) -> Option<[f32; 3]> {
+        if point.distance_squared(self.pos) <= self.rad.powi(2) {
             Some(self.col)
         } else {
             None
@@ -34,7 +34,7 @@ impl Visible for Sphere {
 }
 
 pub struct TestBlobs {
-    pub pos: Vector3<f32>,
+    pub pos: Vec3,
     pub scale: f32,
     pub size: f32,
     pub col: [f32; 3],
@@ -42,9 +42,9 @@ pub struct TestBlobs {
 
 impl Visible for TestBlobs {
     #[inline]
-    fn overlap(&self, point: &Vector3<f32>) -> Option<[f32; 3]> {
+    fn overlap(&self, point: &Vec3) -> Option<[f32; 3]> {
         let local = (point - self.pos) / self.scale;
-        if local.magnitude_squared()
+        if local.length_squared()
             + (4.0 * local.x).sin()
             + (4.0 * local.y).sin()
             + (4.0 * local.z).sin()
@@ -58,7 +58,7 @@ impl Visible for TestBlobs {
 }
 
 pub struct Disk {
-    pub pos: Vector3<f32>,
+    pub pos: Vec3,
     pub outer_rad: f32,
     pub inner_rad: f32,
     pub height: f32,
@@ -66,9 +66,9 @@ pub struct Disk {
 }
 
 impl Visible for Disk {
-    fn overlap(&self, point: &Vector3<f32>) -> Option<[f32; 3]> {
+    fn overlap(&self, point: &Vec3) -> Option<[f32; 3]> {
         let local = point - self.pos;
-        let r = local.xy().magnitude_squared();
+        let r = local.xy().length_squared();
         if r >= self.inner_rad * self.inner_rad && r <= self.outer_rad * self.outer_rad {
             if local.z.abs() < self.height / 2.0 {
                 let theta = (local.y).atan2(local.x);
@@ -107,8 +107,8 @@ impl World {
 
     pub fn add_camera(
         &mut self,
-        cam_pos: Vector3<f32>,
-        subject: Vector3<f32>,
+        cam_pos: Vec3,
+        subject: Vec3,
         width: f32,
         height: f32,
         res_width: u32,
@@ -149,7 +149,7 @@ impl World {
         self.objects.clear();
     }
 
-    pub fn add_mass(&mut self, pos: Vector3<f32>, mass: f32) {
+    pub fn add_mass(&mut self, pos: Vec3, mass: f32) {
         self.masses.push(StaticMass { pos, mass });
     }
 

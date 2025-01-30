@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use image::{Rgb, RgbImage};
-use nalgebra::Vector3;
+use glam::Vec3;
 
 use crate::{photon::Photon, world::World};
 
@@ -9,12 +9,12 @@ const MAX_STEPS: u32 = 400;
 const STEP_SIZE: f32 = 0.05;
 
 pub trait Visible: Send + Sync {
-    fn overlap(&self, point: &Vector3<f32>) -> Option<[f32; 3]>;
+    fn overlap(&self, point: &Vec3) -> Option<[f32; 3]>;
 }
 
 pub struct CameraOrtho {
-    pub pos: Vector3<f32>,
-    pub subject: Vector3<f32>,
+    pub pos: Vec3,
+    pub subject: Vec3,
     pub screen: Screen,
     pub split_index: Option<usize>,
 }
@@ -67,8 +67,8 @@ impl Iterator for ScreenIterator {
 
 impl CameraOrtho {
     pub fn new(
-        pos: Vector3<f32>,
-        subject: Vector3<f32>,
+        pos: Vec3,
+        subject: Vec3,
         width: f32,
         height: f32,
         res_width: u32,
@@ -107,13 +107,11 @@ impl CameraOrtho {
         }
     }
 
-    pub fn pixel_to_clip_pos(&self, x_px: f32, y_px: f32) -> Vector3<f32> {
+    pub fn pixel_to_clip_pos(&self, x_px: f32, y_px: f32) -> Vec3 {
         let dir = self.subject - self.pos;
-        let mut x_basis = Vector3::new(-dir.y, dir.x, 0.0);
-        x_basis.normalize_mut();
-        let mut y_basis = x_basis.cross(&dir);
-        y_basis.normalize_mut();
-
+        let x_basis = Vec3::new(-dir.y, dir.x, 0.0).normalize_or_zero();
+        let y_basis = x_basis.cross(dir).normalize_or_zero();
+        
         let x_px_trans = x_px - (self.screen.res_width / 2) as f32;
         let y_px_trans = -((self.screen.res_height / 2) as f32 - y_px);
 
