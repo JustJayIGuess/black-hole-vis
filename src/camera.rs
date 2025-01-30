@@ -12,7 +12,7 @@ pub trait Visible: Send + Sync {
     fn overlap(&self, point: &Vec3) -> Option<[f32; 3]>;
 }
 
-pub struct CameraOrtho {
+pub struct Ortho {
     pub pos: Vec3,
     pub subject: Vec3,
     pub screen: Screen,
@@ -66,7 +66,8 @@ impl Iterator for ScreenIterator {
     }
 }
 
-impl CameraOrtho {
+#[allow(clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+impl Ortho {
     pub fn new(
         pos: Vec3,
         subject: Vec3,
@@ -75,8 +76,8 @@ impl CameraOrtho {
         res_width: u32,
         res_height: u32,
         exposure: f32,
-    ) -> CameraOrtho {
-        CameraOrtho {
+    ) -> Ortho {
+        Ortho {
             pos,
             subject,
             screen: Screen {
@@ -90,13 +91,13 @@ impl CameraOrtho {
         }
     }
 
-    pub fn subdivide_camera(&self, row_start: u32, row_end: u32, index: usize) -> CameraOrtho {
+    pub fn subdivide_camera(&self, row_start: u32, row_end: u32, index: usize) -> Ortho {
         let pos = self.pixel_to_clip_pos(
             self.screen.res_width as f32 / 2.0,
             (row_start as f32 + row_end as f32) / 2.0,
         );
         let subject = pos + self.subject - self.pos;
-        CameraOrtho {
+        Ortho {
             pos,
             subject,
             screen: Screen {
@@ -134,35 +135,43 @@ impl CameraOrtho {
 
     pub fn render_png(&self, filename: &str, world: &World) {
         let mut image = RgbImage::new(self.screen.res_width, self.screen.res_height);
-        let mut prog: u64 = 0;
 
-        for (x_px, y_px) in self.screen {
+        for (prog, (x_px, y_px)) in (0u64..).zip(self.screen.into_iter()) {
             if x_px == 0 && y_px % 10 == 0 {
                 print!(
                     "\r\t{}: {:.1}%   ",
                     filename,
-                    100.0 * (prog as f64) / (self.screen.res_width * self.screen.res_height) as f64
+                    100.0 * (prog as f64)
+                        / f64::from(self.screen.res_width * self.screen.res_height)
                 );
                 std::io::stdout().flush().unwrap();
             }
-            prog += 1;
             let photon = self.pixel_to_photon(x_px, y_px);
 
             let col = if let Some(diffuse) = world.simulate_photon(photon, MAX_STEPS, STEP_SIZE) {
-                Rgb([
-                    (self.exposure * diffuse[0] * 255.0) as u8,
-                    (self.exposure * diffuse[1] * 255.0) as u8,
-                    (self.exposure * diffuse[2] * 255.0) as u8,
-                ])
+                [
+                    self.exposure * diffuse[0],
+                    self.exposure * diffuse[1],
+                    self.exposure * diffuse[2],
+                ]
             } else {
-                Rgb([0, 0, 0])
+                [0.0, 0.0, 0.0]
             };
-            image.put_pixel(x_px, y_px, col);
+            image.put_pixel(
+                x_px,
+                y_px,
+                Rgb(col
+                    .iter()
+                    .map(|x| (x.clamp(0.0, 1.0) * 255.0) as u8)
+                    .collect::<Vec<u8>>()
+                    .try_into()
+                    .unwrap()),
+            );
         }
 
-        println!("\r\t{}: 100.0%   ", filename);
-        println!("Done Rendering {}. Saving...", filename);
+        println!("\r\t{filename}: 100.0%   ");
+        println!("Done Rendering {filename}. Saving...");
         image.save(filename).unwrap();
-        println!("Saved.")
+        println!("Saved.");
     }
 }

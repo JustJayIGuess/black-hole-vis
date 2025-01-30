@@ -1,5 +1,6 @@
 use std::{f32::consts::PI, sync::Arc, time::SystemTime};
 
+use camera::Ortho;
 use glam::Vec3;
 use world::{Disk, World};
 
@@ -13,6 +14,7 @@ const RES_WIDTH: u32 = 1920;
 const RES_HEIGHT: u32 = 1080;
 const FRAMES: usize = 1;
 
+#[allow(clippy::cast_precision_loss)]
 fn main() {
     let mut world = World::new();
 
@@ -31,7 +33,7 @@ fn main() {
 
         world.add_mass(Vec3::new(0.0, 0.0, 0.0), 10.0);
 
-        world.add_camera(
+        world.add_camera(Ortho::new(
             Vec3::new(
                 8.0 * (2.0 * PI * t).cos(),
                 8.0 * (2.0 * PI * t).sin(),
@@ -43,7 +45,7 @@ fn main() {
             RES_WIDTH,
             RES_HEIGHT,
             0.55,
-        );
+        ));
 
         world.split_and_par_render(NUM_THREADS, &format!("out/frame_{i:0>6}.png"));
         world.clear_objects();

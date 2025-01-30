@@ -5,13 +5,13 @@ use image::{GenericImage, ImageBuffer, ImageReader};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
-    camera::{CameraOrtho, Visible},
+    camera::{Ortho, Visible},
     masses::StaticMass,
     photon::{Photon, Physics},
 };
 
 pub struct World {
-    cameras: Vec<CameraOrtho>,
+    cameras: Vec<Ortho>,
     objects: Vec<Arc<dyn Visible>>,
     masses: Vec<StaticMass>,
 }
@@ -66,7 +66,6 @@ pub struct Disk {
 }
 
 impl Visible for Disk {
-    #[inline(always)]
     fn overlap(&self, point: &Vec3) -> Option<[f32; 3]> {
         let local = point - self.pos;
         if local.z.abs() < self.height / 2.0 {
@@ -75,7 +74,7 @@ impl Visible for Disk {
             {
                 let theta = (local.y).atan2(local.x);
                 let discs_1_phase = 2.0 * r_sqr.powf(0.5) / self.inner_rad;
-                let discs_2_phase = 3.1416 * r_sqr.powf(0.7) / self.inner_rad + theta;
+                let discs_2_phase = 3.24 * r_sqr.powf(0.7) / self.inner_rad + theta;
                 let discs_3_phase = 1.7 * r_sqr.powf(0.5) / self.inner_rad + 2.0 * theta;
                 let discs_4_phase = r_sqr / self.inner_rad + theta;
                 let discs_5_phase = 0.2 * r_sqr / self.inner_rad + 2.0 * theta;
@@ -106,19 +105,8 @@ impl World {
         }
     }
 
-    pub fn add_camera(
-        &mut self,
-        cam_pos: Vec3,
-        subject: Vec3,
-        width: f32,
-        height: f32,
-        res_width: u32,
-        res_height: u32,
-        exposure: f32,
-    ) {
-        self.cameras.push(CameraOrtho::new(
-            cam_pos, subject, width, height, res_width, res_height, exposure,
-        ));
+    pub fn add_camera(&mut self, camera: Ortho) {
+        self.cameras.push(camera);
     }
 
     pub fn clear_cameras(&mut self) {
@@ -126,14 +114,15 @@ impl World {
     }
 
     pub fn split_camera(&mut self, index: usize, n: usize) {
-        if index >= self.cameras.len() {
-            panic!("Tried to split non-existant camera!");
-        }
+        assert!(
+            index < self.cameras.len(),
+            "Tried to split non-existant camera!"
+        );
 
         let camera = self.cameras.remove(index);
 
         let mut last_row_end = 0;
-        let step = camera.screen.res_height / (n as u32);
+        let step = camera.screen.res_height / u32::try_from(n).unwrap();
         for i in 0..n - 1 {
             self.cameras
                 .push(camera.subdivide_camera(last_row_end, last_row_end + step, i));
@@ -159,7 +148,7 @@ impl World {
         self.masses.clear();
     }
 
-    pub fn simulate_photon(
+    pub(crate) fn simulate_photon(
         &self,
         mut photon: Photon,
         max_steps: u32,
@@ -167,7 +156,7 @@ impl World {
     ) -> Option<[f32; 3]> {
         for _ in 0..max_steps {
             photon.step(&self.masses, step_size);
-            for object in self.objects.iter() {
+            for object in &self.objects {
                 if let Some(diffuse) = object.overlap(&photon.pos) {
                     return Some(diffuse);
                 }
@@ -181,22 +170,21 @@ impl World {
         let res_height = self.cameras[0].screen.res_height;
         self.split_camera(0, num_threads);
         self.par_render_split_pngs();
-        self.stitch_pngs(res_width, res_height, filename);
+        World::stitch_pngs(res_width, res_height, filename);
     }
 
-    pub fn par_render_split_pngs(&self) {
+    fn par_render_split_pngs(&self) {
         let _ = fs::create_dir("stitch");
         self.cameras.par_iter().for_each(|camera| {
             if let Some(i) = camera.split_index {
-                camera.render_png(&format!("stitch/stitch_{}.png", i), self);
+                camera.render_png(&format!("stitch/stitch_{i}.png"), self);
             }
         });
     }
 
-    pub fn stitch_pngs(&self, width: u32, height: u32, filename: &str) {
+    fn stitch_pngs(width: u32, height: u32, filename: &str) {
         let mut paths: Vec<PathBuf> = fs::read_dir("stitch")
             .unwrap()
-            .into_iter()
             .map(|p| p.unwrap().path())
             .collect();
 
@@ -205,7 +193,7 @@ impl World {
                 .unwrap()
                 .to_string_lossy()
                 .chars()
-                .filter(|c| c.is_digit(10))
+                .filter(char::is_ascii_digit)
                 .collect::<String>()
                 .parse::<u32>()
                 .unwrap_or(u32::MAX)

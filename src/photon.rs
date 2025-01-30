@@ -16,21 +16,22 @@ impl Photon {
 }
 
 pub trait Physics {
-    fn step(&mut self, environment: &Vec<StaticMass>, step_size: f32);
+    fn step(&mut self, environment: &[StaticMass], step_size: f32);
 }
 
 impl Physics for Photon {
+    #[allow(clippy::inline_always)]
     #[inline(always)]
-    fn step(&mut self, environment: &Vec<StaticMass>, step_size: f32) {
+    fn step(&mut self, environment: &[StaticMass], step_size: f32) {
         // Newtonian
         for mass in environment {
             let r_sqr = mass.pos.distance_squared(self.pos);
-            self.dir = self.dir
-                + step_size * step_size * mass.mass * (mass.pos - self.pos)
-                    / (r_sqr * r_sqr.sqrt()); // a = GM/r^2
+            self.dir +=
+                step_size * step_size * mass.mass * (mass.pos - self.pos) / (r_sqr * r_sqr.sqrt());
+            // a = GM/r^2
         }
 
         self.dir = self.dir.normalize();
-        self.pos = self.pos + self.dir * step_size;
+        self.pos += self.dir * step_size;
     }
 }
