@@ -1,7 +1,7 @@
-use std::io::Write;
+use crate::{photon::Photon, world::World};
 use glam::Vec3;
 use image::{Rgb, RgbImage};
-use crate::{photon::Photon, world::World};
+use std::io::Write;
 
 const MAX_STEPS: u32 = 350;
 const STEP_SIZE: f32 = 0.05;
@@ -64,7 +64,11 @@ impl Iterator for ScreenIterator {
     }
 }
 
-#[allow(clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_truncation
+)]
 impl Ortho {
     pub fn new(
         pos: Vec3,
@@ -168,7 +172,7 @@ impl Ortho {
         }
 
         println!("\r\t{filename}: 100.0%   ");
-        println!("Done Rendering {filename}. Saving...");
+        println!("Done rendering {filename}. Saving...");
         image.save(filename).unwrap();
         println!("Saved.");
     }

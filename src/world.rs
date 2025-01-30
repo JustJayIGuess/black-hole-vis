@@ -1,12 +1,11 @@
-use std::{fs, path::PathBuf, sync::Arc};
-use glam::Vec3;
-use image::{GenericImage, ImageBuffer, ImageReader};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use crate::{
     camera::{Ortho, Visible},
     masses::StaticMass,
     photon::{Photon, Physics},
 };
+use image::{GenericImage, ImageBuffer, ImageReader};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use std::{fs, path::PathBuf, sync::Arc};
 
 pub struct World {
     cameras: Vec<Ortho>,
@@ -58,8 +57,8 @@ impl World {
         self.objects.clear();
     }
 
-    pub fn add_mass(&mut self, pos: Vec3, mass: f32) {
-        self.masses.push(StaticMass { pos, mass });
+    pub fn add_mass(&mut self, mass: StaticMass) {
+        self.masses.push(mass);
     }
 
     pub fn clear_masses(&mut self) {
@@ -127,5 +126,6 @@ impl World {
         }
 
         let _ = image.save(filename);
+        println!("\tStitched and saved file '{filename}'.");
     }
 }

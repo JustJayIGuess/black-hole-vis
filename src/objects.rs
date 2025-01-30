@@ -1,5 +1,5 @@
-use glam::{Vec3, Vec3Swizzles};
 use crate::camera::Visible;
+use glam::{Vec3, Vec3Swizzles};
 
 pub struct Sphere {
     pub pos: Vec3,
@@ -8,7 +8,6 @@ pub struct Sphere {
 }
 
 impl Visible for Sphere {
-    #[inline]
     fn overlap(&self, point: &Vec3) -> Option<[f32; 3]> {
         if point.distance_squared(self.pos) <= self.rad.powi(2) {
             Some(self.col)
@@ -26,7 +25,6 @@ pub struct TestBlobs {
 }
 
 impl Visible for TestBlobs {
-    #[inline]
     fn overlap(&self, point: &Vec3) -> Option<[f32; 3]> {
         let local = (point - self.pos) / self.scale;
         if local.length_squared()

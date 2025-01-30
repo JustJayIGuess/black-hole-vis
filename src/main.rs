@@ -4,12 +4,13 @@ use camera::Ortho;
 use glam::Vec3;
 use objects::Disk;
 use world::World;
+use masses::StaticMass;
 
 mod camera;
 mod masses;
+mod objects;
 mod photon;
 mod world;
-mod objects;
 
 const NUM_THREADS: usize = 10;
 const RES_WIDTH: u32 = 1920;
@@ -33,7 +34,10 @@ fn main() {
             col: [1.0, 0.5, 0.3],
         }));
 
-        world.add_mass(Vec3::new(0.0, 0.0, 0.0), 10.0);
+        world.add_mass(StaticMass {
+            pos: Vec3::new(0.0, 0.0, 0.0),
+            mass: 10.0,
+        });
 
         world.add_camera(Ortho::new(
             Vec3::new(
